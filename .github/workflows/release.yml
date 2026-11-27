@@ -1,0 +1,108 @@
+name: release
+
+# Runs after a successful CI run for a push to main: build + scan + push the image, then deploy.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build image
+    # Only pushes to main of this repository; never PRs, never forks.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-java-maven
+
+      - name: Vaadin production build and Spring Boot jar
+        run: ./mvnw -B -ntp package -DskipTests -Djacoco.skip=true
+
+      - id: meta
+        name: Image tag
+        run: echo "tag=${GITHUB_SHA_FULL}" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_SHA_FULL: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          load: true
+          push: false
+          tags: ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+
+      - name: Trivy image scan (fails on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        run: docker push "$IMAGE:$TAG"
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+
+  deploy:
+    name: Deploy
+    needs: build
+    # The ONLY job that uses the self-hosted runner. It is reachable only via a push to main.
+    runs-on: [self-hosted, linux, shorty-deploy]
+    environment: production
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+          sparse-checkout: deploy
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy with health check and automatic rollback
+        run: bash deploy/deploy.sh "$TAG"
+        env:
+          TAG: ${{ needs.build.outputs.tag }}

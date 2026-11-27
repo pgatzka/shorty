@@ -1,0 +1,5 @@
+CREATE TABLE app_info (
+    id      SMALLINT PRIMARY KEY,
+    created TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+INSERT INTO app_info (id) VALUES (1);

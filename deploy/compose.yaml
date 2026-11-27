@@ -1,0 +1,43 @@
+# Production stack on the home-server VM. Started by deploy/deploy.sh from the self-hosted runner.
+# Secrets come from /opt/shorty/.env (see deploy/env.example); SHORTY_IMAGE_TAG is set by the deploy script.
+name: shorty
+
+services:
+  app:
+    image: ghcr.io/pgatzka/shorty:${SHORTY_IMAGE_TAG:?SHORTY_IMAGE_TAG is required}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SHORTY_DB_URL: jdbc:postgresql://postgres:5432/shorty
+      SHORTY_DB_USER: shorty
+      SHORTY_DB_PASSWORD: ${SHORTY_DB_PASSWORD:?SHORTY_DB_PASSWORD is required}
+      SHORTY_ENCRYPTION_KEY: ${SHORTY_ENCRYPTION_KEY:-}
+      SHORTY_GOOGLE_CLIENT_ID: ${SHORTY_GOOGLE_CLIENT_ID:-}
+      SHORTY_GOOGLE_CLIENT_SECRET: ${SHORTY_GOOGLE_CLIENT_SECRET:-}
+      SHORTY_GOOGLE_REDIRECT_URI: ${SHORTY_GOOGLE_REDIRECT_URI:-http://localhost:8080/oauth2/callback}
+      TZ: ${TZ:-UTC}
+    ports:
+      - "${SHORTY_PORT:-8080}:8080"
+    volumes:
+      - videos:/data/videos
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shorty
+      POSTGRES_USER: shorty
+      POSTGRES_PASSWORD: ${SHORTY_DB_PASSWORD:?SHORTY_DB_PASSWORD is required}
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shorty -d shorty"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  db:
+  videos:

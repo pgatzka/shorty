@@ -1,0 +1,81 @@
+spring:
+  application:
+    name: shorty
+  datasource:
+    url: ${SHORTY_DB_URL:jdbc:postgresql://localhost:5432/shorty}
+    username: ${SHORTY_DB_USER:shorty}
+    password: ${SHORTY_DB_PASSWORD:shorty}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: 8080
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+
+vaadin:
+  launch-browser: false
+
+shorty:
+  # Base64-encoded 32-byte key used to encrypt the YouTube refresh token. Never commit it.
+  encryption-key: ${SHORTY_ENCRYPTION_KEY:}
+  health:
+    # Set to true in a commit to test the deploy rollback (see README). Baked into the image on purpose.
+    force-down: false
+  youtube:
+    client-id: ${SHORTY_GOOGLE_CLIENT_ID:}
+    client-secret: ${SHORTY_GOOGLE_CLIENT_SECRET:}
+    redirect-uri: ${SHORTY_GOOGLE_REDIRECT_URI:http://localhost:8080/oauth2/callback}
+  render:
+    output-dir: ${SHORTY_VIDEO_DIR:./videos}
+    ffmpeg-path: ${SHORTY_FFMPEG:ffmpeg}
+  schedule:
+    check-interval: PT30S
+    grace: PT15M
+  analytics:
+    cron: "0 0 */6 * * *"
+  publishing:
+    retention-count: 20
+    title-templates:
+      - "{algorithm} sorting {bars} bars #shorts"
+      - "Watch {algorithm} sort {bars} bars in {seconds} seconds #shorts"
+      - "{algorithm}: {comparisons} comparisons, one satisfying sort #shorts"
+      - "Can you hear {algorithm} sorting? #shorts"
+      - "{bars} random bars vs {algorithm} #shorts"
+    description-templates:
+      - |
+        {algorithm} sorting {bars} random values. Time complexity: {bigO}.
+        {comparisons} comparisons, {swaps} swaps, {accesses} array accesses.
+        Follow {handle} for a new sorting algorithm every day.
+        #shorts #sorting #algorithms #programming
+      - |
+        Every beep is a comparison or a swap; pitch follows the bar height.
+        {algorithm} ({bigO}) needed {comparisons} comparisons and {swaps} swaps for {bars} values.
+        More sorting on {handle}.
+        #shorts #sortingalgorithm #computerscience #coding
+    tags:
+      - sorting
+      - sorting algorithm
+      - algorithm
+      - visualization
+      - computer science
+      - programming
+      - coding
+      - shorts

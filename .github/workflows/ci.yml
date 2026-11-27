@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: CI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # Sonar needs history for new-code detection
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-java-maven
+
+      - name: Install ffmpeg (render tests encode real videos)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Format check (Spotless)
+        run: ./mvnw -B -ntp spotless:check
+
+      - name: Compile with Error Prone, then Checkstyle and PMD
+        run: ./mvnw -B -ntp test-compile checkstyle:check pmd:check
+
+      - name: Unit and integration tests, coverage gate (80 % lines and branches)
+        run: ./mvnw -B -ntp verify
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: jacoco-report
+          path: target/site/jacoco/
+          if-no-files-found: ignore
+
+      - name: SonarQube Cloud scan and quality gate
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not available (fork PR or not configured); skipping the Sonar scan."
+            exit 0
+          fi
+          ./mvnw -B -ntp sonar:sonar -Dsonar.qualitygate.wait=true
