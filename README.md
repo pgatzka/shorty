@@ -14,7 +14,7 @@ Shorty renders **sorting-algorithm visualization videos** as vertical YouTube Sh
 
 ## Architecture
 
-Java 25 · Spring Boot 4.1 · Vaadin 25 Flow · Spring Modulith 2.1 · Spring Data JPA + PostgreSQL 18 · Flyway · Java2D + ffmpeg · YouTube Data API v3 · Maven · Docker Compose
+Java 25 · Spring Boot 4.2 · Vaadin 25 Flow · Spring Modulith 2.2 · Spring Data JPA + PostgreSQL 18 · Flyway · Java2D + ffmpeg · YouTube Data API v3 · Maven · Docker Compose
 
 ```mermaid
 flowchart LR
