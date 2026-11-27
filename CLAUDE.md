@@ -18,7 +18,7 @@ Guidance for AI assistants (and humans) working on Shorty. Read README.md for wh
 
 ## Decisions (keep unless the user changes them)
 
-- Java 25, Spring Boot 4.1.x, Vaadin 25.3.x, Spring Modulith 2.1.x. Boot 4.2 was out at setup, but Vaadin 25.3's official starter targets Boot 4.1; move to 4.2 together with a Vaadin release that supports it.
+- Java 25, Spring Boot 4.2.x, Vaadin 25.3.x, Spring Modulith 2.2.x. Vaadin 25.3's official starter targets Boot 4.1, but the full test suite (including browserless UI tests) passes on 4.2. Watch Vaadin release notes when bumping either.
 - Base package `io.github.pgatzka.shorty`. Modules: `sorting`, `render`, `youtube`, `publishing`, `schedule`, `analytics`, `ui`.
 - PostgreSQL + Flyway (`src/main/resources/db/migration`, never edit an applied migration; add `V<n+1>__*.sql`). Hibernate runs with `ddl-auto: validate`.
 - Rendering: Java2D frames (`TYPE_3BYTE_BGR`) piped as rawvideo into ffmpeg (libx264 + AAC), with beeps synthesized as PCM in `AudioTrack`. No extra graphics libraries.
