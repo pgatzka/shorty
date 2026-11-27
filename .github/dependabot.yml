@@ -33,6 +33,10 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    ignore:
+      # A PostgreSQL major upgrade needs a dump/restore of the data volume; do it by hand.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
     groups:
       compose-minor-and-patch:
         update-types: [minor, patch]
